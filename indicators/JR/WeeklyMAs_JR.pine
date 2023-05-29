@@ -1,0 +1,8 @@
+//Daily Moving Averages (Indikator 1):
+//https://jensrabe.mykajabi.com/products/rendite-coaching-plus/categories/1655710/posts/6668409
+//@version=5
+indicator(title="Weekly MA's [JR-Academy]", shorttitle="Weekly MA's [JR-Academy]", overlay=true)
+plot(ta.ema(close,21),title= "EMA 21", color = color.green, linewidth =2)
+plot(ta.sma(close,30),title= "MA 30", color = color.orange, linewidth =2)
+plot(ta.sma(close,40),title= "MA 40", color = color.purple, linewidth =2)
+plot(ta.sma(close,50),title= "MA 50", color = color.red, linewidth =2)
