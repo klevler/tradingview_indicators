@@ -1,0 +1,41 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Template from Rabe Akademi
+// © barton_
+
+ //@version=5
+ indicator(title='[wsh]CCC_MAs_dev', shorttitle='[wsh]CCC_MAs_dev', overlay=true, precision=2, max_bars_back = 501)
+
+bool tm_daily = timeframe.isdaily
+
+Daily_EMA_10 = color.blue
+Daily_EMA_21 = color.green
+Daily_SMA_50 = color.orange
+Daily_SMA_150 = color.purple
+Daily_SMA_200 = color.red
+
+Weekly_SMA_30 = color.new(#9598a1,0)
+Weekly_SMA_40 = color.new(color.purple, 0)
+Weekly_SMA_50 = color.new(color.red, 0)
+
+//------ Durchschnitte ----------
+EMA_10 = 10
+EMA_21 = 21
+SMA_50_30 = tm_daily ? 50: 30
+SMA_150_40 = tm_daily ? 150: 40
+SMA_200_50 = tm_daily ? 200: 50
+
+ema_10 = ta.ema(close, 10)
+ema_30 = ta.ema(close, 30)
+weekly_ema_10 = request.security(syminfo.tickerid, 'D', ta.ema(close, 10))
+weekly_ema_30 = request.security(syminfo.tickerid, 'D', ta.ema(close, 30))
+
+plot(ta.ema(close, EMA_10),title= "EMA 10", color = Daily_EMA_10, linewidth =2)
+plot(ta.ema(close, EMA_21),title= "EMA 21", color = Daily_EMA_21, linewidth =2)
+
+plot(ta.sma(close, SMA_50_30),title= "MA 50/30", color = tm_daily ? Daily_SMA_50 : Weekly_SMA_30, linewidth =2)
+
+plot(ta.sma(close, SMA_150_40),title= "MA 150/40", color = tm_daily ? Daily_SMA_150 : Weekly_SMA_40, linewidth =2)
+plot(ta.sma(close, SMA_200_50),title= "MA 200/50", color = tm_daily ? Daily_SMA_200 : Weekly_SMA_50, linewidth =2)
+
+bgcolor(ema_10 > ema_30 ? color.new(color.green, 90) : na)
+bgcolor(weekly_ema_10 > weekly_ema_30 ? color.new(color.green, 80) : na)

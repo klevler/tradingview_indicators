@@ -1,0 +1,37 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © barton_
+
+//@version=5
+indicator("VIX 10SMA")
+
+// Getting inputs
+symbol = input.symbol(title='Tiker', defval='CBOE:VIX')
+vix = request.security(symbol, timeframe.period, hlc3)
+sma_periode = input(10, "SMA")
+
+col_signal = input(color.new(#ed0c0c, 70), title = "Signal")
+
+// Candel Color
+//col_body_up = input.color(color.new(#ed0c0c, 70), "Körper", group="Kerze", inline="candle")
+//col_body_down = input.color(#B2DFDB, "", group="Kerze", inline="candle")
+//col_wick_up = input.color(color.new(#ed0c0c, 70)), "Rahmen", group="Kerze", inline="wick")
+//col_wick_down = input.color(#FF5252, "", group="Kerze", inline="wick")
+//col_border_up = input.color(#FFCDD2, "Docht   ", group="Kerze", inline="border")
+//col_border_down = input.color(#FF5252, "", group="Kerze", inline="border")
+//----------------------------------------------------------------
+//----------------------------------------------------------------
+[openV, highV, lowV, closeV, maV] = request.security(symbol, timeframe.period, [open, high, low, close, ta.sma(close, sma_periode)])
+
+aboveLine = highV > maV * 1.20 ? 1 : 0
+red = color.new(color.red, 0)
+color sig_color = aboveLine ? col_signal: na
+
+bgcolor(color=sig_color, title = "Signal") 
+
+color UP_COLOR = color.green
+color DN_COLOR = color.red
+color col_candle = closeV >= openV ? UP_COLOR: DN_COLOR
+
+plotcandle(openV, highV, lowV, closeV, color=col_candle, wickcolor = col_candle , bordercolor = col_candle, title = "Kerze")
+plot(maV, title = "SMA")
+plot(maV * 1.2, title = "SMA")
