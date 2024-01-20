@@ -1,0 +1,420 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Template from Rabe Akademi
+// © barton_
+
+ //@version=5
+ indicator(title='[wsh]Combined Candle Counter', shorttitle='[wsh]CCC_dev', overlay=true, precision=2, max_bars_back = 501)
+
+
+//-------------------------------------------------------------------
+//
+//-------------------------------------------------------------------
+is_30m_tm = timeframe.period == "30"
+is_d_tm = timeframe.period == "D"
+is_w_tm = timeframe.period == "W"
+
+
+//-------------------------------------------------------------------
+// Common Inputs
+//--------------------------------------------------------------------
+showDefualt_JR_Template = input(true, "Show Default Template")
+showEma5 = input(false, "Show 5 EMA")
+showEma10 = input(true, "Show 10 EMA")
+showEma21 = input(true, "Show 21 EMA")
+showEma21_weekly = input(true, "Show 21 EMA Weekly")
+showSma30 = input(false, "Show 30 SMA")
+showSma40 = input(false, "Show 40 SMA")
+showSma50 = input(true, "Show 50 SMA")
+showSma150 = input(false, "Show 150 SMA")
+showSma200 = input(true, "Show 200 SMA")
+//--------------------------------------------------------------------
+showDDayAndLabel = input(true, "Show D-Day Marker and Label")
+showClimaxes = input(true, "Show Buying/Selling Climaxes")
+show52WeekHighLow = input(true, "Show 52-Week High/Low")
+
+
+//-------------------------------------------------------------
+// Default Tempalte Switch
+//-------------------------------------------------------------
+if(showDefualt_JR_Template)
+    if(is_30m_tm)
+        showEma5 := false  
+        showEma10 := false
+        showEma21 := false
+        showEma21_weekly := false
+        showSma30 := false   
+        showSma40 := false 
+        showSma50 := false 
+        showSma150 := false 
+        showSma200 := false  
+    else
+        showSma50 := true
+        showSma30 := (is_w_tm ? true : showSma30)
+        
+        showSma150 := (is_w_tm ? false : is_d_tm ? true :showSma150)
+        showSma40 := (is_w_tm ? true : showSma40)
+    
+        showSma200 := (is_w_tm ? false : is_d_tm ? true : showSma200)
+  
+    
+    
+
+
+
+//-------------------------------------------------------------------------
+// study(title="VIX reversion-Buschi")
+//-------------------------------------------------------------------------
+points = input.int(3, minval=1, title='VIX Intra-day reversion points')
+is_reversion = false
+vix_high = request.security('VIX', 'D', high)
+vix_close = request.security('VIX', 'D', close)
+if(timeframe.isdaily and syminfo.ticker == 'VIX')
+    is_reversion := vix_high > 20 and vix_high - vix_close > points ? true : false
+
+plotchar(series=is_reversion, title='VIX Reversion', char='R', color=color.new(color.red, 0), size=size.tiny)
+
+//-------------------------------------------------------------------------
+// 52-Week High/Low Logic für den Tageschart
+//-------------------------------------------------------------------------
+length52Weeks = 260 // 52 Wochen * 5 Tage
+highestHigh52 = ta.highest(high, length52Weeks)
+lowestLow52 = ta.lowest(low, length52Weeks)
+short_length = 40
+// Hole die Werte vom Tageschart
+highestHigh52_daily = request.security(syminfo.tickerid, "D", highestHigh52)
+lowestLow52_daily = request.security(syminfo.tickerid, "D", lowestLow52)
+
+// Zeichnet kürzere Linien für das 52-Wochen-Hoch und -Tief auf dem aktuellen Chart
+if (barstate.islast and show52WeekHighLow)
+    line.new(x1=bar_index-short_length, y1=highestHigh52_daily, x2=bar_index, y2=highestHigh52_daily, color=color.red, width=2)
+    line.new(x1=bar_index-short_length, y1=lowestLow52_daily, x2=bar_index, y2=lowestLow52_daily, color=color.green, width=2)
+
+//-------------------------------------------------------------------------
+// Climax Logic
+//-------------------------------------------------------------------------
+length52 = 52
+highestHigh = ta.highest(high, length52)
+lowestLow = ta.lowest(low, length52)
+highestHighPrev = ta.highest(high[1], length52)
+lowestLowPrev = ta.lowest(low[1], length52)
+
+buyingClimax = high > highestHighPrev and close < open and timeframe.isweekly
+sellingClimax = low < lowestLowPrev and close > open and timeframe.isweekly
+
+plotchar(buyingClimax and showClimaxes, title="Buying Climax", char="B", location=location.abovebar, color=color.red, size=size.tiny)
+plotchar(sellingClimax and showClimaxes, title="Selling Climax", char="S", location=location.belowbar, color=color.green, size=size.tiny)
+
+//-------------------------------------------------------------------------
+// Plotting EMAs/SMAs
+//-------------------------------------------------------------------------
+Daily_EMA_5 = color.black
+Daily_EMA_10 = color.blue
+Daily_EMA_21 = color.green
+Daily_SMA_50 = color.orange
+Daily_SMA_150 = color.purple
+Daily_SMA_200 = color.red
+Thirty_SMA_5 = color.green
+
+
+Weekly_SMA_30 = color.new(#9598a1,85)
+Weekly_SMA_40 = color.new(color.purple, 0)
+Weekly_SMA_50 = color.new(color.red, 0)
+//------------------------------------------------------------------------
+ema5  =  ta.sma(close, 5)
+ema10 = ta.ema(close, 10)
+ema21 = ta.ema(close, 21)
+sma30 = ta.sma(close, 30)
+sma40 = ta.sma(close, 40)
+sma50 = ta.sma(close, 50)
+sma150 = ta.sma(close, 150)
+sma200 = ta.sma(close, 200)
+weekly_ema21 = request.security(syminfo.tickerid, "W", ta.ema(close, 21))
+
+plot(showEma5 ? ema5 : na, title="EMA 5", color=Daily_EMA_5, linewidth=2)
+plot(showEma10 ? ema10 : na, title="EMA 10", color=Daily_EMA_10, linewidth=2)
+plot(showEma21 ? ema21 : na, title="EMA 21", color=Daily_EMA_21, linewidth=2)
+
+plot(showSma50 ? sma50 : na, title="SMA 50",  color=(is_d_tm ? Daily_SMA_50 : Daily_SMA_200), linewidth=2)
+plot(showSma150 ? sma150 : na, title="SMA 150", color=Daily_SMA_150, linewidth=2)
+plot(showSma200 ? sma200 : na, title="SMA 200", color=Daily_SMA_200, linewidth=2)
+
+
+plot(showSma30 ? sma30 : na, title="SMA 30", color=Weekly_SMA_30, linewidth=2, style=plot.style_area)
+plot(showSma40 ? sma40 : na, title="SMA 40", color=Weekly_SMA_40, linewidth=2)
+
+plot(showEma21_weekly ? weekly_ema21 : na, title="weekly_ema21", color=Daily_EMA_21, linewidth=1)
+
+//------------------------------------------------------------------------
+// Alarme
+//------------------------------------------------------------------------
+// Trigger an alert if the EMA 21 crosses the EMA 10
+alertcondition(ta.crossover(ema21, ema10), title="EMA 21 crosses above EMA 10", message="EMA 21 crosses above EMA 10")
+alertcondition(ta.crossunder(ema21, ema10), title="EMA 21 crosses below EMA 10", message="EMA 21 crosses below EMA 10")
+
+//------------------------------------------------------------------------
+// SMA 5 in 30m Timeframe
+//------------------------------------------------------------------------
+close_30m = request.security(syminfo.tickerid, "30", close)
+sma_5 = ta.sma(close_30m, 5)
+// Plot the SMA 5
+plot(is_30m_tm ? sma_5 : na, color=Thirty_SMA_5, title = "SMA 5(30m)", linewidth=2)
+
+
+//-------------------------------------------------------------------------
+// D-Day Logik
+//-------------------------------------------------------------------------
+var float weekly_ema21_1 = na
+var float prev_weekly_close = na
+var bool allowDDays = true
+var float dday_count = 0.0
+var float dday_count_temp = 0.0  // Neue Zeile hier
+
+weekly_ema21_1 := request.security(syminfo.tickerid, "W", ta.ema(close, 21), lookahead=barmerge.lookahead_on)
+prev_weekly_close := request.security(syminfo.tickerid, "W", close[1], lookahead=barmerge.lookahead_on)
+
+if (ta.change(time("W")) != 0)
+    allowDDays := prev_weekly_close > weekly_ema21_1
+
+// D-Day Logik
+is_dday = close < close[1] * 0.998 and volume > volume[1] and timeframe.isdaily and allowDDays
+
+// Zustand aktualisieren und math.sum aufrufen
+dday_count_temp := math.sum(is_dday ? 1 : 0, 25)  // Aktualisierung hier
+if (allowDDays)
+    dday_count := dday_count_temp
+else
+    dday_count := 0
+
+
+// Zeichnet den D-Day Marker, wenn D-Days erlaubt sind
+plotchar(is_dday and showDDayAndLabel, title="D-Day Marker", char="D", location=location.abovebar, color=color.orange, size=size.tiny)
+
+//--------------------------------------------------------------------
+// Combined Logic
+//---------------------------------------------------------------------
+
+var float counterAbove = 0.0
+var float counterBelow = 0.0
+
+if (barstate.isconfirmed)
+    if (close > ema21)
+        counterAbove := counterAbove + 1
+        counterBelow := 0
+    else
+        counterBelow := counterBelow + 1
+        counterAbove := 0
+
+// Combined Label
+var label labelID = na
+if (na(labelID) == false)
+    label.delete(labelID)
+
+labelText = ""
+if (counterAbove > 0)
+    labelText := "über EMA: +" + str.tostring(counterAbove)
+if (counterBelow > 0)
+    labelText := "unter EMA: -" + str.tostring(counterBelow)
+if (timeframe.isdaily)
+    labelText := labelText + "\nD-Days: " + str.tostring(dday_count)
+
+var color labelColor = na
+labelColor := counterAbove > 0 ? color.green : (counterBelow > 0 ? color.red : na)
+
+if (showDDayAndLabel and labelText != "")
+    labelID := label.new(x=bar_index +1, y=close, text=labelText, color=labelColor, textcolor=color.white, xloc=xloc.bar_index, yloc=yloc.price, size=size.normal, style=label.style_label_left)
+
+//==================================================================================================
+
+//---------------------------------------------------------------------------------
+// "Support Resistance Channels", "SRchannel"  © LonesomeTheBlue
+// Version 5.0
+//---------------------------------------------------------------------------------
+//study("Support Resistance Channels", "CCC", overlay = true, max_bars_back = 501)
+prd = input.int(defval = 10, title="Pivot Period", minval = 4, maxval = 30, group = "SRchannel 🔨", tooltip="Used while calculating Pivot Points, checks left&right bars")
+ppsrc = input.string(defval = 'High/Low', title="Source", options = ['High/Low', 'Close/Open'], group = "SRchannel 🔨", tooltip="Source for Pivot Points")
+ChannelW = input.int(defval = 5, title = "Maximum Channel Width %", minval = 1, maxval = 8, group = "SRchannel 🔨", tooltip="Calculated using Highest/Lowest levels in 300 bars")
+minstrength = input.int(defval = 1, title = "Minimum Strength", minval = 1, group = "SRchannel 🔨", tooltip = "Channel must contain at least 2 Pivot Points")
+maxnumsr = input.int(defval = 10, title = "Maximum Number of S/R", minval = 1, maxval = 10, group = "SRchannel 🔨", tooltip = "Maximum number of Support/Resistance Channels to Show") - 1
+loopback = input.int(defval = 360, title = "Loopback Period", minval = 100, maxval = 400, group = "SRchannel 🔨", tooltip="While calculating S/R levels it checks Pivots in Loopback Period")
+res_col = input(defval = color.new(color.red, 90), title = "Resistance Color", group = "SRchannel Colors 🟡🟢🟣")
+sup_col = input(defval = color.new(color.lime, 90), title = "Support Color", group = "SRchannel Colors 🟡🟢🟣")
+inch_col = input(defval = color.new(color.gray, 90), title = "Color When Price in Channel", group = "SRchannel Colors 🟡🟢🟣")
+// MAs
+//showpp = input(defval = false, title = "Show Pivot Points", group = "Extras ⏶⏷")
+//showsrbroken = input(defval = false, title = "Show Broken Support/Resistance", group = "Extras ⏶⏷")
+//showthema1en = input(defval = false, title = "MA 1", inline = "ma1")
+//showthema1len = input(defval = 50, title = "", inline = "ma1")
+//showthema1type = input.string(defval = "SMA", title = "", options = ["SMA", "EMA"], inline = "ma1")
+//showthema2en = input(defval = false, title = "MA 2", inline = "ma2")
+//showthema2len = input(defval = 200, title = "", inline = "ma2")
+//showthema2type = input.string(defval = "SMA", title = "", options = ["SMA", "EMA"], inline = "ma2")
+
+//ma1 = showthema1en ? (showthema1type == "SMA" ? ta.sma(close, showthema1len) : ta.ema(close, showthema1len)) : na
+//ma2 = showthema2en ? (showthema2type == "SMA" ? ta.sma(close, showthema2len) : ta.ema(close, showthema2len)) : na
+
+//plot(ma1, color = not na(ma1) ? color.blue : na)
+ //plot(ma2, color = not na(ma2) ? color.red : na)
+// MAs
+
+// get Pivot High/low
+float src1 =  ppsrc == 'High/Low' ? high : math.max(close, open)
+float src2 =  ppsrc == 'High/Low' ? low: math.min(close, open)
+float ph = ta.pivothigh(src1, prd, prd)
+float pl = ta.pivotlow(src2, prd, prd) 
+
+// draw Pivot points
+//plotshape(ph and showpp, text = "H",  style = shape.labeldown, color = na, textcolor = color.red, location = location.abovebar, offset = -prd)
+//plotshape(pl and showpp, text = "L",  style = shape.labelup, color = na, textcolor = color.lime, location = location.belowbar, offset = -prd)
+
+//calculate maximum S/R channel width
+prdhighest =  ta.highest(300)
+prdlowest = ta.lowest(300)
+cwidth = (prdhighest - prdlowest) * ChannelW / 100
+
+// get/keep Pivot levels
+var pivotvals= array.new_float(0)
+var pivotlocs= array.new_float(0)
+if ph or pl
+    array.unshift(pivotvals, ph ? ph : pl)
+    array.unshift(pivotlocs, bar_index)
+    for x = array.size(pivotvals) - 1 to 0
+        if bar_index - array.get(pivotlocs, x) > loopback // remove old pivot points
+            array.pop(pivotvals)
+            array.pop(pivotlocs)
+            continue
+        break
+
+//find/create SR channel of a pivot point
+get_sr_vals(ind)=>
+    float lo = array.get(pivotvals, ind)
+    float hi = lo
+    int numpp = 0
+    for y = 0 to array.size(pivotvals) - 1
+        float cpp = array.get(pivotvals, y)
+        float wdth = cpp <= hi ? hi - cpp : cpp - lo
+        if wdth <= cwidth // fits the max channel width?
+            if cpp <= hi
+                lo := math.min(lo, cpp)
+            else
+                hi := math.max(hi, cpp)
+                
+            numpp := numpp + 20 // each pivot point added as 20
+    [hi, lo, numpp] 
+
+// keep old SR channels and calculate/sort new channels if we met new pivot point
+var suportresistance = array.new_float(20, 0) // min/max levels
+changeit(x, y)=>
+    tmp = array.get(suportresistance, y * 2)
+    array.set(suportresistance, y * 2, array.get(suportresistance, x * 2))
+    array.set(suportresistance, x * 2, tmp)
+    tmp := array.get(suportresistance, y * 2 + 1)
+    array.set(suportresistance, y * 2 + 1, array.get(suportresistance, x * 2 + 1))
+    array.set(suportresistance, x * 2 + 1, tmp)
+    
+if ph or pl
+    supres = array.new_float(0)  // number of pivot, strength, min/max levels
+    stren = array.new_float(10, 0)
+    // get levels and strengs
+    for x = 0 to array.size(pivotvals) - 1
+        [hi, lo, strength] = get_sr_vals(x)
+        array.push(supres, strength)
+        array.push(supres, hi)
+        array.push(supres, lo)
+    
+    // add each HL to strengh
+    for x = 0 to array.size(pivotvals) - 1
+        h = array.get(supres, x * 3 + 1)
+        l = array.get(supres, x * 3 + 2)
+        s = 0
+        for y = 0 to loopback
+            if (high[y] <= h and high[y] >= l) or
+               (low[y] <= h and low[y] >= l)
+                s := s + 1
+        array.set(supres, x * 3, array.get(supres, x * 3) + s)
+    
+    //reset SR levels
+    array.fill(suportresistance, 0)
+    // get strongest SRs
+    src = 0
+    for x = 0 to array.size(pivotvals) - 1
+        stv = -1. // value
+        stl = -1 // location
+        for y = 0 to array.size(pivotvals) - 1
+            if array.get(supres, y * 3) > stv and array.get(supres, y * 3) >= minstrength * 20
+                stv := array.get(supres, y * 3)
+                stl := y
+        if stl >= 0
+            //get sr level
+            hh = array.get(supres, stl * 3 + 1)
+            ll = array.get(supres, stl * 3 + 2)
+            array.set(suportresistance, src * 2, hh)
+            array.set(suportresistance, src * 2 + 1, ll)
+            array.set(stren, src, array.get(supres, stl * 3))
+            
+            // make included pivot points' strength zero 
+            for y = 0 to array.size(pivotvals) - 1
+                if (array.get(supres, y * 3 + 1) <= hh and array.get(supres, y * 3 + 1) >= ll) or
+                   (array.get(supres, y * 3 + 2) <= hh and array.get(supres, y * 3 + 2) >= ll)
+                    array.set(supres, y * 3, -1)
+
+            src += 1
+            if src >= 10
+                break
+    
+    for x = 0 to 8
+        for y = x + 1 to 9
+            if array.get(stren, y) > array.get(stren, x)
+                tmp = array.get(stren, y) 
+                array.set(stren, y, array.get(stren, x))
+                changeit(x, y)
+                
+    
+get_level(ind)=>
+    float ret = na
+    if ind < array.size(suportresistance)
+        if array.get(suportresistance, ind) != 0
+            ret := array.get(suportresistance, ind)
+    ret
+    
+get_color(ind)=>
+    color ret = na
+    if ind < array.size(suportresistance)
+        if array.get(suportresistance, ind) != 0
+            ret := array.get(suportresistance, ind) > close and array.get(suportresistance, ind + 1) > close ? res_col :
+                   array.get(suportresistance, ind) < close and array.get(suportresistance, ind + 1) < close ? sup_col :
+                   inch_col
+    ret
+
+var srchannels = array.new_box(10)
+for x = 0 to math.min(9, maxnumsr)
+    box.delete(array.get(srchannels, x))
+    srcol = get_color(x * 2)
+    if not na(srcol)
+        array.set(srchannels, x, 
+                  box.new(left = bar_index, top = get_level(x * 2), right = bar_index + 1, bottom = get_level(x * 2 + 1), 
+                          border_color = srcol, 
+                          border_width = 1,
+                          extend = extend.both, 
+                          bgcolor = srcol))
+
+resistancebroken = false
+supportbroken = false
+
+// check if it's not in a channel
+not_in_a_channel = true
+for x = 0 to math.min(9, maxnumsr)
+    if close <= array.get(suportresistance, x * 2) and close >= array.get(suportresistance, x * 2 + 1) 
+        not_in_a_channel := false
+
+// if price is not in a channel then check broken ones
+if not_in_a_channel
+    for x = 0 to math.min(9, maxnumsr)
+        if close[1] <= array.get(suportresistance, x * 2) and close > array.get(suportresistance, x * 2)
+            resistancebroken := true
+        if close[1] >= array.get(suportresistance, x * 2 + 1) and close < array.get(suportresistance, x * 2 + 1)
+            supportbroken := true
+
+alertcondition(resistancebroken, title = "Resistance Broken", message = "Resistance Broken")
+alertcondition(supportbroken, title = "Support Broken", message = "Support Broken")
+//plotshape(showsrbroken and resistancebroken, style = shape.triangleup, location = location.belowbar, color = color.new(color.lime, 0), size = size.tiny)
+//plotshape(showsrbroken and supportbroken, style = shape.triangledown, location = location.abovebar, color = color.new(color.red, 0), size = size.tiny)
