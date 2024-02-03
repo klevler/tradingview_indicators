@@ -196,7 +196,9 @@ plotchar(is_dday and showDDayAndLabel, title="D-Day Marker", char="D", location=
 var float counterAbove = 0.0
 var float counterBelow = 0.0
 
-if (barstate.isconfirmed)
+combine_en = barstate.isconfirmed or hour(timenow, "UTC+1") > 20
+
+if (combine_en)
     if (close > ema21)
         counterAbove := counterAbove + 1
         counterBelow := 0
