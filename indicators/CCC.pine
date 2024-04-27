@@ -5,131 +5,60 @@
  //@version=5
  indicator(title='[wsh]Combined Candle Counter', shorttitle='[wsh]CCC', overlay=true, precision=2, max_bars_back = 501)
 
-strategy = input(title='Skip D-Days calculation below MA?', defval=true)
-count_anyway = input(title='Count below MA?', defval=false)
-show_dis = input(title='Show D-Days?', defval=true)
 
-ma_type = input.string(title='Moving Average Type', defval='exponential', options=['normal', 'weighted', 'exponential'])
-ma_lenght_21 = input(title='MA 21', defval=21)
-ma_lenght_50 = input(title='MA 50', defval=50)
-ma_lenght_150 = input(title='MA 50', defval=150)
-ma_lenght_200 = input(title='MA 200', defval=200)
-ma_src = input(title='Source', defval=close)
+//-------------------------------------------------------------------
+//
+//-------------------------------------------------------------------
+is_30m_tm = timeframe.period == "30"
+is_d_tm = timeframe.period == "D"
+is_w_tm = timeframe.period == "W"
 
-// Im Wochenchart werden die Durchschnitte angepasst
-if timeframe.isweekly
-    ma_lenght_50 := 10
-    ma_lenght_150 := 30
-    ma_lenght_200 := 40
 
-look_back = input.int(25, minval=1, title='Distribution Days Lookback')
+//-------------------------------------------------------------------
+// Common Inputs
+//--------------------------------------------------------------------
+showDefualt_JR_Template = input(true, "Show Default Template")
+showEma5 = input(false, "Show 5 EMA")
+showEma10 = input(true, "Show 10 EMA")
+showEma21 = input(true, "Show 21 EMA")
+showEma21_weekly = input(true, "Show 21 EMA Weekly")
+showSma30 = input(false, "Show 30 SMA")
+showSma40 = input(false, "Show 40 SMA")
+showSma50 = input(true, "Show 50 SMA")
+showSma150 = input(false, "Show 150 SMA")
+showSma200 = input(true, "Show 200 SMA")
+//--------------------------------------------------------------------
+showDDayAndLabel = input(true, "Show D-Day Marker and Label")
+showClimaxes = input(true, "Show Buying/Selling Climaxes")
+show52WeekHighLow = input(true, "Show 52-Week High/Low")
 
-ma_wk_len = input.int(21, title='Weekly MA Lenght', minval=1)
-ma_wk_src = input(title='Weekly Source', defval=close)
 
-float ma_show_21 = na
-float ma_show_50 = na
-float ma_show_150 = na
-float ma_show_200 = na
-float ma_show_wk = na
-bool distribution = false
-bool distribution_plot = false
-var count = 0
-cnt = 0
-var label myLabel = label.new(x=0, y=0, textcolor=color.white, color=color.blue, style=label.style_label_left)
-string sign = na
-dt = time - time[1]
+//-------------------------------------------------------------
+// Default Tempalte Switch
+//-------------------------------------------------------------
+if(showDefualt_JR_Template)
+    if(is_30m_tm)
+        showEma5 := false  
+        showEma10 := false
+        showEma21 := false
+        showEma21_weekly := false
+        showSma30 := false   
+        showSma40 := false 
+        showSma50 := false 
+        showSma150 := false 
+        showSma200 := false  
+    else
+        showSma50 := true
+        showSma30 := (is_w_tm ? true : showSma30)
+        
+        showSma150 := (is_w_tm ? false : is_d_tm ? true :showSma150)
+        showSma40 := (is_w_tm ? true : showSma40)
+    
+        showSma200 := (is_w_tm ? false : is_d_tm ? true : showSma200)
+  
+    
+    
 
-out_ema = ta.ema(ma_wk_src, ma_wk_len)
-out_wma = ta.wma(ma_wk_src, ma_wk_len)
-out_sma = ta.sma(ma_wk_src, ma_wk_len)
-out_ema_w = request.security(syminfo.tickerid, 'W', out_ema)
-out_wma_w = request.security(syminfo.tickerid, 'W', out_wma)
-out_sma_w = request.security(syminfo.tickerid, 'W', out_sma)
-
-if ma_type == 'normal'
-    ma_show_21 := ta.sma(ma_src, ma_lenght_21)
-    ma_show_50 := ta.sma(ma_src, ma_lenght_50)
-    ma_show_150 := ta.sma(ma_src, ma_lenght_150)
-    ma_show_200 := ta.sma(ma_src, ma_lenght_200)
-    if timeframe.isdaily
-        ma_show_wk := out_sma_w
-        ma_show_wk
-if ma_type == 'weighted'
-    ma_show_21 := ta.wma(ma_src, ma_lenght_21)
-    ma_show_50 := ta.wma(ma_src, ma_lenght_50)
-    ma_show_150 := ta.wma(ma_src, ma_lenght_150)
-    ma_show_200 := ta.wma(ma_src, ma_lenght_200)
-    if timeframe.isdaily
-        ma_show_wk := out_wma_w
-        ma_show_wk
-if ma_type == 'exponential'
-    ma_show_21 := ta.ema(ma_src, ma_lenght_21)
-    ma_show_50 := ta.ema(ma_src, ma_lenght_50)
-    ma_show_150 := ta.ema(ma_src, ma_lenght_150)
-    ma_show_200 := ta.ema(ma_src, ma_lenght_200)
-    if timeframe.isdaily
-        ma_show_wk := out_ema_w
-        ma_show_wk
-
-if close > ma_show_21
-    if count < 0
-        count := 0
-        count
-    count += 1
-    count
-else
-    if count > 0
-        count := 0
-        count
-    count -= 1
-    count
-
-if timeframe.isdaily
-    down_bar = ta.change(close) < close[1] * -0.002 ? true : false
-    volume_up = ta.change(volume) > 0 ? true : false
-    distribution := down_bar and volume_up ? true : false
-
-    if strategy
-        distribution := distribution and close > ma_show_wk ? true : false
-        distribution
-    for i = 0 to look_back by 1
-        if not count_anyway and close[0] < ma_show_wk[i]
-            break
-        if strategy and close[i] < ma_show_wk[i] and not count_anyway
-            break
-        if distribution[i]
-            if not count_anyway and close[i] < ma_show_wk[i]
-                break
-            cnt += 1
-            cnt
-
-if count > 0
-    sign := '+'
-    sign
-
-if math.sign(count) < 0
-    label.set_color(id=myLabel, color=color.red)
-else
-    label.set_color(id=myLabel, color=color.green)
-
-if show_dis
-    distribution_plot := distribution
-    distribution_plot
-
-if timeframe.isdaily and show_dis
-    label.set_text(id=myLabel, text='+/- Candles: ' + sign + str.tostring(count) + '\nD-Days: ' + str.tostring(cnt))
-else
-    label.set_text(id=myLabel, text='+/- Candles: ' + sign + str.tostring(count))
-
-label.set_xloc(id=myLabel, x=time + dt / 2, xloc=xloc.bar_time)
-label.set_y(id=myLabel, y=close)
-plotchar(distribution_plot, char='D', color=color.new(color.fuchsia, 0), size=size.tiny)
-plot(ma_show_21, title='MA 21', linewidth=2, color=color.new(#2962ff, 0))
-plot(ma_show_50, title='MA 50', linewidth=2, color=color.new(#009E60, 0))
-plot(ma_show_150, title='MA 150', linewidth=2, color=color.new(#FFCC00, 0))
-plot(ma_show_200, title='MA 200', linewidth=2, color=color.new(#D9004C, 0))
-plot(ma_show_wk, title='MA Weekly on Daily Chart', linewidth=1, color=color.new(#2962ff, 0))
 
 
 //-------------------------------------------------------------------------
@@ -137,15 +66,166 @@ plot(ma_show_wk, title='MA Weekly on Daily Chart', linewidth=1, color=color.new(
 //-------------------------------------------------------------------------
 points = input.int(3, minval=1, title='VIX Intra-day reversion points')
 is_reversion = false
-
 vix_high = request.security('VIX', 'D', high)
 vix_close = request.security('VIX', 'D', close)
-
-if timeframe.isdaily and syminfo.ticker == 'VIX'
+if(timeframe.isdaily and syminfo.ticker == 'VIX')
     is_reversion := vix_high > 20 and vix_high - vix_close > points ? true : false
-    is_reversion
 
-plotchar(series=is_reversion, char='R', color=color.new(color.red, 0), size=size.tiny)
+plotchar(series=is_reversion, title='VIX Reversion', char='R', color=color.new(color.red, 0), size=size.tiny)
+
+//-------------------------------------------------------------------------
+// 52-Week High/Low Logic für den Tageschart
+//-------------------------------------------------------------------------
+length52Weeks = 260 // 52 Wochen * 5 Tage
+highestHigh52 = ta.highest(high, length52Weeks)
+lowestLow52 = ta.lowest(low, length52Weeks)
+short_length = 40
+// Hole die Werte vom Tageschart
+highestHigh52_daily = request.security(syminfo.tickerid, "D", highestHigh52)
+lowestLow52_daily = request.security(syminfo.tickerid, "D", lowestLow52)
+
+// Zeichnet kürzere Linien für das 52-Wochen-Hoch und -Tief auf dem aktuellen Chart
+if (barstate.islast and show52WeekHighLow)
+    line.new(x1=bar_index-short_length, y1=highestHigh52_daily, x2=bar_index, y2=highestHigh52_daily, color=color.red, width=2)
+    line.new(x1=bar_index-short_length, y1=lowestLow52_daily, x2=bar_index, y2=lowestLow52_daily, color=color.green, width=2)
+
+//-------------------------------------------------------------------------
+// Climax Logic
+//-------------------------------------------------------------------------
+length52 = 52
+highestHigh = ta.highest(high, length52)
+lowestLow = ta.lowest(low, length52)
+highestHighPrev = ta.highest(high[1], length52)
+lowestLowPrev = ta.lowest(low[1], length52)
+
+buyingClimax = high > highestHighPrev and close < open and timeframe.isweekly
+sellingClimax = low < lowestLowPrev and close > open and timeframe.isweekly
+
+plotchar(buyingClimax and showClimaxes, title="Buying Climax", char="B", location=location.abovebar, color=color.red, size=size.tiny)
+plotchar(sellingClimax and showClimaxes, title="Selling Climax", char="S", location=location.belowbar, color=color.green, size=size.tiny)
+
+//-------------------------------------------------------------------------
+// Plotting EMAs/SMAs
+//-------------------------------------------------------------------------
+Daily_EMA_5 = color.black
+Daily_EMA_10 = color.blue
+Daily_EMA_21 = color.green
+Daily_SMA_50 = color.orange
+Daily_SMA_150 = color.purple
+Daily_SMA_200 = color.red
+Thirty_SMA_5 = color.green
+
+
+Weekly_SMA_30 = color.new(#9598a1,85)
+Weekly_SMA_40 = color.new(color.purple, 0)
+Weekly_SMA_50 = color.new(color.red, 0)
+//------------------------------------------------------------------------
+ema5  =  ta.sma(close, 5)
+ema10 = ta.ema(close, 10)
+ema21 = ta.ema(close, 21)
+sma30 = ta.sma(close, 30)
+sma40 = ta.sma(close, 40)
+sma50 = ta.sma(close, 50)
+sma150 = ta.sma(close, 150)
+sma200 = ta.sma(close, 200)
+weekly_ema21 = request.security(syminfo.tickerid, "W", ta.ema(close, 21))
+
+plot(showEma5 ? ema5 : na, title="EMA 5", color=Daily_EMA_5, linewidth=2)
+plot(showEma10 ? ema10 : na, title="EMA 10", color=Daily_EMA_10, linewidth=2)
+plot(showEma21 ? ema21 : na, title="EMA 21", color=Daily_EMA_21, linewidth=2)
+
+plot(showSma50 ? sma50 : na, title="SMA 50",  color=(is_d_tm ? Daily_SMA_50 : Daily_SMA_200), linewidth=2)
+plot(showSma150 ? sma150 : na, title="SMA 150", color=Daily_SMA_150, linewidth=2)
+plot(showSma200 ? sma200 : na, title="SMA 200", color=Daily_SMA_200, linewidth=2)
+
+
+plot(showSma30 ? sma30 : na, title="SMA 30", color=Weekly_SMA_30, linewidth=2, style=plot.style_area)
+plot(showSma40 ? sma40 : na, title="SMA 40", color=Weekly_SMA_40, linewidth=2)
+
+plot(showEma21_weekly ? weekly_ema21 : na, title="weekly_ema21", color=Daily_EMA_21, linewidth=1)
+
+//------------------------------------------------------------------------
+// Alarme
+//------------------------------------------------------------------------
+// Trigger an alert if the EMA 21 crosses the EMA 10
+alertcondition(ta.crossover(ema21, ema10), title="EMA 21 crosses above EMA 10", message="EMA 21 crosses above EMA 10")
+alertcondition(ta.crossunder(ema21, ema10), title="EMA 21 crosses below EMA 10", message="EMA 21 crosses below EMA 10")
+
+//------------------------------------------------------------------------
+// SMA 5 in 30m Timeframe
+//------------------------------------------------------------------------
+close_30m = request.security(syminfo.tickerid, "30", close)
+sma_5 = ta.sma(close_30m, 5)
+// Plot the SMA 5
+plot(is_30m_tm ? sma_5 : na, color=Thirty_SMA_5, title = "SMA 5(30m)", linewidth=2)
+
+
+//-------------------------------------------------------------------------
+// D-Day Logik
+//-------------------------------------------------------------------------
+var float weekly_ema21_1 = na
+var float prev_weekly_close = na
+var bool allowDDays = true
+var float dday_count = 0.0
+var float dday_count_temp = 0.0  // Neue Zeile hier
+
+weekly_ema21_1 := request.security(syminfo.tickerid, "W", ta.ema(close, 21), lookahead=barmerge.lookahead_on)
+prev_weekly_close := request.security(syminfo.tickerid, "W", close[1], lookahead=barmerge.lookahead_on)
+
+if (ta.change(time("W")) != 0)
+    allowDDays := prev_weekly_close > weekly_ema21_1
+
+// D-Day Logik
+is_dday = close < close[1] * 0.998 and volume > volume[1] and timeframe.isdaily and allowDDays
+
+// Zustand aktualisieren und math.sum aufrufen
+dday_count_temp := math.sum(is_dday ? 1 : 0, 25)  // Aktualisierung hier
+if (allowDDays)
+    dday_count := dday_count_temp
+else
+    dday_count := 0
+
+
+// Zeichnet den D-Day Marker, wenn D-Days erlaubt sind
+plotchar(is_dday and showDDayAndLabel, title="D-Day Marker", char="D", location=location.abovebar, color=color.orange, size=size.tiny)
+
+//--------------------------------------------------------------------
+// Combined Logic
+//---------------------------------------------------------------------
+
+var float counterAbove = 0.0
+var float counterBelow = 0.0
+
+combine_en = barstate.isconfirmed or hour(timenow, "UTC+1") > 20
+
+if (combine_en)
+    if (close > ema21)
+        counterAbove := counterAbove + 1
+        counterBelow := 0
+    else
+        counterBelow := counterBelow + 1
+        counterAbove := 0
+
+// Combined Label
+var label labelID = na
+if (na(labelID) == false)
+    label.delete(labelID)
+
+labelText = ""
+if (counterAbove > 0)
+    labelText := "über EMA: +" + str.tostring(counterAbove)
+if (counterBelow > 0)
+    labelText := "unter EMA: -" + str.tostring(counterBelow)
+if (timeframe.isdaily)
+    labelText := labelText + "\nD-Days: " + str.tostring(dday_count)
+
+var color labelColor = na
+labelColor := counterAbove > 0 ? color.green : (counterBelow > 0 ? color.red : na)
+
+if (showDDayAndLabel and labelText != "")
+    labelID := label.new(x=bar_index +1, y=close, text=labelText, color=labelColor, textcolor=color.white, xloc=xloc.bar_index, yloc=yloc.price, size=size.normal, style=label.style_label_left)
+
+//==================================================================================================
 
 //---------------------------------------------------------------------------------
 // "Support Resistance Channels", "SRchannel"  © LonesomeTheBlue
@@ -158,9 +238,9 @@ ChannelW = input.int(defval = 5, title = "Maximum Channel Width %", minval = 1, 
 minstrength = input.int(defval = 1, title = "Minimum Strength", minval = 1, group = "SRchannel 🔨", tooltip = "Channel must contain at least 2 Pivot Points")
 maxnumsr = input.int(defval = 10, title = "Maximum Number of S/R", minval = 1, maxval = 10, group = "SRchannel 🔨", tooltip = "Maximum number of Support/Resistance Channels to Show") - 1
 loopback = input.int(defval = 360, title = "Loopback Period", minval = 100, maxval = 400, group = "SRchannel 🔨", tooltip="While calculating S/R levels it checks Pivots in Loopback Period")
-res_col = input(defval = color.new(color.red, 75), title = "Resistance Color", group = "SRchannel Colors 🟡🟢🟣")
-sup_col = input(defval = color.new(color.lime, 75), title = "Support Color", group = "SRchannel Colors 🟡🟢🟣")
-inch_col = input(defval = color.new(color.gray, 75), title = "Color When Price in Channel", group = "SRchannel Colors 🟡🟢🟣")
+res_col = input(defval = color.new(color.red, 90), title = "Resistance Color", group = "SRchannel Colors 🟡🟢🟣")
+sup_col = input(defval = color.new(color.lime, 90), title = "Support Color", group = "SRchannel Colors 🟡🟢🟣")
+inch_col = input(defval = color.new(color.gray, 90), title = "Color When Price in Channel", group = "SRchannel Colors 🟡🟢🟣")
 // MAs
 //showpp = input(defval = false, title = "Show Pivot Points", group = "Extras ⏶⏷")
 //showsrbroken = input(defval = false, title = "Show Broken Support/Resistance", group = "Extras ⏶⏷")
